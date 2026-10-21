@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "letterboxd-trakt-sync"
+dynamic = ["version"]
+description = "Sync movie watches and ratings between Letterboxd and Trakt"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/carsoreo/letterboxd-trakt-sync"
+
+[project.scripts]
+lbtrakt = "lbtrakt.__main__:main"
+
+[tool.setuptools]
+packages = ["lbtrakt"]
+
+[tool.setuptools.dynamic]
+version = { attr = "lbtrakt.__version__" }

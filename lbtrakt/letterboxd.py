@@ -8,8 +8,10 @@ import zipfile
 from dataclasses import dataclass
 from typing import Optional
 
+from . import __version__
+
 NS = {"letterboxd": "https://letterboxd.com", "tmdb": "https://themoviedb.org"}
-USER_AGENT = "letterboxd-trakt-sync/0.1 (+https://github.com/carsoreo/letterboxd-trakt-sync)"
+USER_AGENT = f"letterboxd-trakt-sync/{__version__} (+https://github.com/carsoreo/letterboxd-trakt-sync)"
 IMPORT_FIELDS = ["tmdbID", "imdbID", "Title", "Year", "WatchedDate", "Rating10"]
 MAX_IMPORT_BYTES = 1_000_000  # Letterboxd rejects import files over 1 MB
 
@@ -79,6 +81,9 @@ def parse_rss(xml_text):
 
 
 def fetch_rss(username, timeout=30):
+    # Letterboxd usernames are letters, digits and underscores; refuse anything that could change the URL
+    if not re.fullmatch(r"[A-Za-z0-9_]{1,30}", username or ""):
+        raise ValueError(f"Not a valid Letterboxd username: {username!r}")
     url = f"https://letterboxd.com/{username}/rss/"
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=timeout) as resp:

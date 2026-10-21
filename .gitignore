@@ -7,3 +7,8 @@ exports/
 
 __pycache__/
 *.pyc
+
+# build output
+build/
+dist/
+*.egg-info/

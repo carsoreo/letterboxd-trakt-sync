@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import time
+import xml.etree.ElementTree as ET
 from datetime import datetime
 
 from . import letterboxd, sync
@@ -26,9 +27,10 @@ def load_json(path, default):
 
 def save_state(path, state):
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
+    # holds Trakt tokens: create it owner-only from the start, then swap it in atomically
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(state, f, indent=1)
-    os.chmod(tmp, 0o600)  # holds Trakt tokens
     os.replace(tmp, path)
 
 
@@ -50,6 +52,7 @@ def main(argv=None):
     cfg = load_json(args.config, DEFAULTS)
     if not cfg["trakt_client_id"]:
         sys.exit(f"Set trakt_client_id in {args.config} (see config.example.json)")
+    cfg["interval_hours"] = max(1, float(cfg["interval_hours"]))  # be gentle with Letterboxd and Trakt
     base = os.path.dirname(os.path.abspath(args.config))
     state_path = args.state or os.path.join(base, "state.json")
     state = load_json(state_path, {})
@@ -86,11 +89,13 @@ def main(argv=None):
                     run_sync()
                     if not args.dry_run:
                         save_state(state_path, state)
-                except (TraktError, OSError) as e:  # network hiccups shouldn't kill the loop
+                except (TraktError, OSError, ET.ParseError) as e:  # network hiccups shouldn't kill the loop
                     log(f"sync failed, will retry next round: {e}")
                 time.sleep(cfg["interval_hours"] * 3600)
     except TraktError as e:
         sys.exit(f"Trakt error: {e}")
+    except (ValueError, OSError, ET.ParseError) as e:
+        sys.exit(f"Error: {e}")
     if not args.dry_run:
         save_state(state_path, state)
 

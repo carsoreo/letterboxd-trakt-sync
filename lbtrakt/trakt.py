@@ -5,16 +5,24 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from .letterboxd import norm
+from .letterboxd import USER_AGENT, norm
 
 API = "https://api.trakt.tv"
-USER_AGENT = "letterboxd-trakt-sync/0.1"
 POST_BATCH = 500
+
+# plain-language hints for Trakt's account-level errors
+HINTS = {
+    401: "Trakt sign-in is no longer valid; run: python -m lbtrakt auth",
+    420: "your Trakt account has reached its connected-app limit (free accounts allow one). "
+         "Disconnect an app at trakt.tv/settings/connected_apps, reuse the Client ID of an app you "
+         "already connected, or upgrade to Trakt VIP",
+    423: "your Trakt account is locked; check trakt.tv",
+    426: "this needs Trakt VIP",
+}
 
 
 class TraktError(Exception):
     pass
-
 
 
 class Trakt:
@@ -47,7 +55,7 @@ class Trakt:
             if e.code == 429 and retries:
                 time.sleep(int(e.headers.get("Retry-After", "2")) + 1)
                 return self._request(method, path, body, auth, params, retries - 1)
-            detail = e.read().decode(errors="replace")[:300]
+            detail = HINTS.get(e.code) or e.read().decode(errors="replace")[:300]
             raise TraktError(f"{method} {path} -> HTTP {e.code}: {detail}") from None
 
     def _post_token(self, path, body):
