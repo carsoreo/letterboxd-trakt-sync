@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 import zipfile
+from datetime import datetime, timezone
 
 from lbtrakt import letterboxd, sync
 from lbtrakt.letterboxd import Watch
@@ -151,6 +152,16 @@ class LetterboxdToTrakt(unittest.TestCase):
 
 
 class TraktToLetterboxd(unittest.TestCase):
+    def test_undated_import_dated_today_is_not_exported_back(self):
+        t = FakeTrakt()
+        state = {"export_since": "2000-01-01T00:00:00.000Z"}
+        sync.letterboxd_to_trakt(t, [Watch("Raise the Red Lantern", 1991, None)], state, sync_ratings=False)
+        # Trakt had no release date, so it logged the play "now"
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        t.history = [play(7, 10404, "Raise the Red Lantern", 1991, now)]
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(sync.trakt_to_letterboxd(t, state, d)["exported"], 0)
+
     def test_first_run_only_sets_watermark(self):
         state = {}
         s = sync.trakt_to_letterboxd(FakeTrakt(), state, "unused", now="2026-10-21T00:00:00.000Z")

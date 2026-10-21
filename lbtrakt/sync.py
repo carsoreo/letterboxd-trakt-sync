@@ -7,6 +7,7 @@ state (a dict saved as JSON) remembers:
   exported_ids    Trakt history ids already written to an import file
 """
 import os
+from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 
 from .letterboxd import import_csv_chunks, norm
@@ -90,8 +91,12 @@ def letterboxd_to_trakt(trakt, watches, state, sync_ratings=True, dry_run=False)
         if ratings:
             summary["ratings"] = _post_with_search(trakt, trakt.add_ratings, ratings)[0]
         seen = set(state.get("lb_seen", []))
+        today = date.today().isoformat()
         for w in watches:
             seen |= w.keys()
+            if w in new and not w.date:
+                # Trakt dates a "released" play today when it has no release date; don't export that back
+                seen |= replace(w, date=today).keys()
             if w.source_id:
                 synced.add(w.source_id)
         state["lb_seen"], state["synced_guids"] = sorted(seen), sorted(synced)
