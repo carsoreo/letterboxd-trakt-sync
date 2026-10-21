@@ -104,6 +104,9 @@ class TraktToLetterboxd(unittest.TestCase):
         state = {}
         s = sync.trakt_to_letterboxd(FakeTrakt(), state, "unused", now="2026-10-21T00:00:00.000Z")
         self.assertEqual((s["exported"], state["export_since"]), (0, "2026-10-21T00:00:00.000Z"))
+        dry = {}
+        sync.trakt_to_letterboxd(FakeTrakt(), dry, "unused", dry_run=True)
+        self.assertEqual(dry, {})
 
     def test_exports_trakt_only_plays_once(self):
         t = FakeTrakt(history=[  # newest first, like the API

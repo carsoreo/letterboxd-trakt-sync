@@ -86,7 +86,8 @@ def trakt_to_letterboxd(trakt, state, out_dir, since=None, now=None, dry_run=Fal
     now = now or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     since = since or state.get("export_since")
     if not since:  # first run: start from now rather than dumping the whole Trakt history
-        state["export_since"] = now
+        if not dry_run:
+            state["export_since"] = now
         return {"exported": 0, "files": [], "note": "first run, exporting plays from now on"}
 
     seen = set(state.get("lb_seen", []))
