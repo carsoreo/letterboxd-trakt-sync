@@ -110,9 +110,9 @@ def read_export(path):
     if zipfile.is_zipfile(path):
         with zipfile.ZipFile(path) as z:
             for n in z.namelist():
-                base = n.rsplit("/", 1)[-1]
-                if base in names:
-                    names[base] = z.read(n).decode("utf-8")
+                # top level only: exports also hold deleted/ and orphaned/ copies of these files
+                if n in names:
+                    names[n] = z.read(n).decode("utf-8")
     else:
         import os
         folder = path if os.path.isdir(path) else os.path.dirname(path)

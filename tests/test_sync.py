@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+import zipfile
 
 from lbtrakt import letterboxd, sync
 from lbtrakt.letterboxd import Watch
@@ -57,6 +58,17 @@ class LetterboxdParsing(unittest.TestCase):
         self.assertEqual(set(w), {("Heat", "2026-01-01"), ("Alien", None)})  # Heat not duplicated
         self.assertEqual(w[("Alien", None)].rating, 5.0)
 
+    def test_zip_ignores_deleted_and_orphaned_copies(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "export.zip")
+            with zipfile.ZipFile(path, "w") as z:
+                z.writestr("diary.csv", DIARY)
+                z.writestr("watched.csv", WATCHED)
+                z.writestr("deleted/diary.csv", "Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date\n")
+                z.writestr("orphaned/watched.csv", "Date,Name,Year,Letterboxd URI\n")
+            w = {(x.title, x.date) for x in letterboxd.read_export(path)}
+        self.assertEqual(w, {("Heat", "2026-01-01"), ("Alien", None)})
+
     def test_import_csv_splits_under_limit(self):
         rows = [{"tmdbID": i, "imdbID": "", "Title": "x" * 200, "Year": 2000, "WatchedDate": "2026-01-01", "Rating10": ""}
                 for i in range(6000)]
@@ -89,8 +101,9 @@ class LetterboxdToTrakt(unittest.TestCase):
         self.assertEqual(t.added_history, [{"title": "Alien", "year": 1979, "watched_at": "released"}])
 
     def test_unchanged_rating_not_resent(self):
-        t = FakeTrakt(ratings=[{"rating": 9, "movie": {"ids": {"tmdb": 949}}}])
-        sync.letterboxd_to_trakt(t, [Watch("Heat", 1995, "2026-10-20", tmdb=949, rating=4.5)], {})
+        t = FakeTrakt(ratings=[{"rating": 9, "movie": {"title": "Heat", "year": 1995, "ids": {"tmdb": 949}}}])
+        sync.letterboxd_to_trakt(t, [Watch("Heat", 1995, "2026-10-20", tmdb=949, rating=4.5),
+                                     Watch("heat", 1995, None, rating=4.5)], {})  # CSV rows have no tmdb id
         self.assertEqual(t.added_ratings, [])
 
     def test_dry_run_changes_nothing(self):
@@ -112,7 +125,7 @@ class TraktToLetterboxd(unittest.TestCase):
         t = FakeTrakt(history=[  # newest first, like the API
             play(3, 348, "Alien", 1979, "2026-10-21T02:00:00.000Z"),
             play(2, 949, "Heat", 1995, "2026-10-20T16:00:00.000Z"),
-        ], ratings=[{"rating": 8, "movie": {"ids": {"tmdb": 348}}}])
+        ], ratings=[{"rating": 8, "movie": {"title": "Alien", "year": 1979, "ids": {"tmdb": 348}}}])
         state = {"export_since": "2026-10-01T00:00:00.000Z"}
         sync.letterboxd_to_trakt(t, [Watch("Heat", 1995, "2026-10-20", tmdb=949)], state)  # Heat came from Letterboxd
         with tempfile.TemporaryDirectory() as d:

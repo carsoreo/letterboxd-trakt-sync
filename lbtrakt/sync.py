@@ -54,14 +54,17 @@ def letterboxd_to_trakt(trakt, watches, state, sync_ratings=True, dry_run=False)
 
     ratings = []
     if sync_ratings:
-        current = {r["movie"]["ids"].get("tmdb"): r["rating"] for r in trakt.movie_ratings()}
+        current = {}
+        for r in trakt.movie_ratings():
+            m = r["movie"]
+            current[m["ids"].get("tmdb")] = current[(m["title"].casefold(), m.get("year"))] = r["rating"]
         latest = {}
         for w in watches:  # later entries win, so the newest Letterboxd rating is kept
             if w.rating:
-                latest[w.tmdb or (w.title, w.year)] = w
-        for w in latest.values():
+                latest[w.tmdb or (w.title.casefold(), w.year)] = w
+        for key, w in latest.items():
             r10 = max(1, min(10, round(w.rating * 2)))
-            if not (w.tmdb and current.get(w.tmdb) == r10):
+            if current.get(key) != r10:
                 ratings.append(dict(_movie_ref(w), rating=r10))
 
     if not dry_run:
