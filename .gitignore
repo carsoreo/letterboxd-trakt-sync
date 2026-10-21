@@ -1,0 +1,9 @@
+# personal data: never commit
+config.json
+state.json
+state.json.tmp
+exports/
+*.zip
+
+__pycache__/
+*.pyc

@@ -1,0 +1,8 @@
+{
+  "letterboxd_username": "your-letterboxd-username",
+  "trakt_client_id": "client id of the Trakt app you created",
+  "trakt_client_secret": "",
+  "export_dir": "exports",
+  "sync_ratings": true,
+  "interval_hours": 6
+}

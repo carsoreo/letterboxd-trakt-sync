@@ -1,0 +1,29 @@
+#!/bin/sh
+# Batocera service: runs letterboxd-trakt-sync in the background every interval_hours.
+# Install: copy to /userdata/system/services/, then: batocera-services enable letterboxd_trakt_sync
+#          batocera-services start letterboxd_trakt_sync
+
+APP_DIR="/userdata/system/letterboxd-trakt-sync"
+LOG="/userdata/system/logs/letterboxd-trakt-sync.log"
+PIDFILE="/var/run/letterboxd-trakt-sync.pid"
+
+case "$1" in
+    start)
+        echo -n "Starting letterboxd-trakt-sync: "
+        start-stop-daemon -S -b -m -p "$PIDFILE" -d "$APP_DIR" -x /bin/sh -- \
+            -c "exec python -u -m lbtrakt --config config.json run >> '$LOG' 2>&1"
+        echo "done"
+        ;;
+    stop)
+        echo -n "Stopping letterboxd-trakt-sync: "
+        start-stop-daemon -K -q -p "$PIDFILE" && rm -f "$PIDFILE"
+        echo "done"
+        ;;
+    status)
+        if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then echo "running"; else echo "stopped"; fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|status}"
+        exit 1
+        ;;
+esac
