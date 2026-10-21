@@ -20,7 +20,7 @@ def play_keys(play, any_date=True):
     """Identity keys for a Trakt history item. '?' keys let undated Letterboxd films match any play."""
     m = play["movie"]
     day = local_date(play["watched_at"])
-    keys = set()
+    keys = {f"d:{m['title'].casefold()}|{day}"}
     for d in (day, "?") if any_date else (day,):
         keys.add(f"t:{m['title'].casefold()}|{m.get('year')}|{d}")
         if m["ids"].get("tmdb"):
