@@ -27,9 +27,10 @@ def play(pid, tmdb, title, year, when):
 
 
 class FakeTrakt:
-    def __init__(self, history=(), ratings=()):
+    def __init__(self, history=(), ratings=(), unmatched=(), search=None):
         self.history, self.ratings = list(history), list(ratings)
         self.added_history, self.added_ratings = [], []
+        self.unmatched, self.search = set(unmatched), search or {}  # titles Trakt can't match by name
 
     def movie_history(self, start_at=None):
         return [p for p in self.history if not start_at or p["watched_at"] >= start_at]
@@ -37,13 +38,19 @@ class FakeTrakt:
     def movie_ratings(self):
         return self.ratings
 
+    def find_movie(self, title, year):
+        return self.search.get(title)
+
+    def _add(self, store, movies):
+        missing = [m for m in movies if "ids" not in m and m["title"] in self.unmatched]
+        store += [m for m in movies if m not in missing]
+        return {"added": len(movies) - len(missing), "not_found": missing}
+
     def add_history(self, movies):
-        self.added_history += movies
-        return {"added": len(movies), "not_found": []}
+        return self._add(self.added_history, movies)
 
     def add_ratings(self, movies):
-        self.added_ratings += movies
-        return {"added": len(movies), "not_found": []}
+        return self._add(self.added_ratings, movies)
 
 
 class LetterboxdParsing(unittest.TestCase):
@@ -105,6 +112,16 @@ class LetterboxdToTrakt(unittest.TestCase):
         t = FakeTrakt(history=[play(1, 581734, "Sound of Metal", 2020, "2026-05-11T12:00:00.000Z")])
         s = sync.letterboxd_to_trakt(t, [Watch("Sound of Metal", 2019, "2026-05-11")], {}, sync_ratings=False)
         self.assertEqual((s["added"], s["already_on_trakt"]), (0, 1))
+
+    def test_unmatched_title_found_by_search_and_resent(self):
+        t = FakeTrakt(unmatched={"The Godfather Part II", "Cowboy Bebop"},
+                      search={"The Godfather Part II": {"tmdb": 240}})
+        s = sync.letterboxd_to_trakt(t, [Watch("The Godfather Part II", 1974, None, rating=5.0),
+                                         Watch("Cowboy Bebop", 1998, None)], {})
+        self.assertEqual(s["added"], 1)
+        self.assertEqual(s["not_found"], [{"title": "Cowboy Bebop", "year": 1998, "watched_at": "released"}])
+        self.assertEqual(t.added_history, [{"watched_at": "released", "ids": {"tmdb": 240}}])
+        self.assertEqual(t.added_ratings, [{"rating": 10, "ids": {"tmdb": 240}}])
 
     def test_undated_remake_not_confused(self):
         t = FakeTrakt(history=[play(1, 948, "Halloween", 1978, "2023-04-05T12:00:00.000Z")])

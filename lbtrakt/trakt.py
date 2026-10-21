@@ -2,6 +2,7 @@
 import json
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 API = "https://api.trakt.tv"
@@ -24,7 +25,7 @@ class Trakt:
     def _request(self, method, path, body=None, auth=True, params=None, retries=3):
         url = API + path
         if params:
-            url += "?" + "&".join(f"{k}={v}" for k, v in params.items())
+            url += "?" + urllib.parse.urlencode(params)
         headers = {
             "Content-Type": "application/json",
             "trakt-api-version": "2",
@@ -109,6 +110,14 @@ class Trakt:
             if page >= int(headers.get("X-Pagination-Page-Count", "1")):
                 return plays
             page += 1
+
+    def find_movie(self, title, year):
+        """Trakt ids for a title whose exact name didn't match, allowing the year to be off by one."""
+        items, _ = self._request("GET", "/search/movie", params={"query": title, "fields": "title", "limit": 10})
+        for item in items or []:
+            if year is None or abs((item["movie"].get("year") or 0) - year) <= 1:
+                return item["movie"]["ids"]
+        return None
 
     def movie_ratings(self):
         items, _ = self._request("GET", "/sync/ratings/movies")

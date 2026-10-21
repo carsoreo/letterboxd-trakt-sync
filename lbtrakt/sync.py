@@ -34,6 +34,23 @@ def _movie_ref(w):
     return {"title": w.title, "year": w.year}
 
 
+def _post_with_search(trakt, post, items):
+    """Post items; titles Trakt can't match by name are looked up with search and sent again by id."""
+    res = post(items)
+    added, missing, retry = res["added"], [], []
+    for item in res["not_found"]:
+        ids = "ids" not in item and trakt.find_movie(item["title"], item.get("year"))
+        if ids:
+            retry.append({k: v for k, v in dict(item, ids=ids).items() if k not in ("title", "year")})
+        else:
+            missing.append(item)
+    if retry:
+        again = post(retry)
+        added += again["added"]
+        missing += again["not_found"]
+    return added, missing
+
+
 def letterboxd_to_trakt(trakt, watches, state, sync_ratings=True, dry_run=False):
     synced = set(state.get("synced_guids", []))
     watches = [w for w in watches if not (w.source_id and w.source_id in synced)]
@@ -69,10 +86,9 @@ def letterboxd_to_trakt(trakt, watches, state, sync_ratings=True, dry_run=False)
 
     if not dry_run:
         if history:
-            res = trakt.add_history(history)
-            summary["added"], summary["not_found"] = res["added"], res["not_found"]
+            summary["added"], summary["not_found"] = _post_with_search(trakt, trakt.add_history, history)
         if ratings:
-            summary["ratings"] = trakt.add_ratings(ratings)["added"]
+            summary["ratings"] = _post_with_search(trakt, trakt.add_ratings, ratings)[0]
         seen = set(state.get("lb_seen", []))
         for w in watches:
             seen |= w.keys()
