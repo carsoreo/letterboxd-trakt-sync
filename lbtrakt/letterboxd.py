@@ -28,8 +28,11 @@ class Watch:
         """Identity keys for spotting the same viewing on both services."""
         day = self.date or "?"
         out = {f"t:{self.title.casefold()}|{self.year}|{day}"}
-        if self.date:  # title + day alone: Letterboxd and Trakt sometimes disagree on the year by one
+        # Letterboxd and Trakt sometimes disagree on the year by one (festival vs release year)
+        if self.date:
             out.add(f"d:{self.title.casefold()}|{day}")
+        elif self.year:
+            out |= {f"t:{self.title.casefold()}|{self.year + d}|?" for d in (-1, 1)}
         if self.tmdb:
             out.add(f"tmdb:{self.tmdb}|{day}")
         return out

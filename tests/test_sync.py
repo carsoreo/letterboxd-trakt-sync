@@ -123,6 +123,11 @@ class LetterboxdToTrakt(unittest.TestCase):
         self.assertEqual(t.added_history, [{"watched_at": "released", "ids": {"tmdb": 240}}])
         self.assertEqual(t.added_ratings, [{"rating": 10, "ids": {"tmdb": 240}}])
 
+    def test_undated_entry_matches_year_off_by_one(self):
+        t = FakeTrakt(history=[play(1, 1339713, "Obsession", 2026, "2026-05-16T02:00:00.000Z")])
+        s = sync.letterboxd_to_trakt(t, [Watch("Obsession", 2025, None)], {}, sync_ratings=False)
+        self.assertEqual(s["added"], 0)
+
     def test_undated_remake_not_confused(self):
         t = FakeTrakt(history=[play(1, 948, "Halloween", 1978, "2023-04-05T12:00:00.000Z")])
         s = sync.letterboxd_to_trakt(t, [Watch("Halloween", 2018, None)], {}, sync_ratings=False)
