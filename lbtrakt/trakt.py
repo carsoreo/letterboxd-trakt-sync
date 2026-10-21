@@ -1,5 +1,6 @@
 """Small Trakt API client: device sign-in, token refresh, movie history and ratings."""
 import json
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -12,6 +13,10 @@ POST_BATCH = 500
 
 class TraktError(Exception):
     pass
+
+
+def _words(title):
+    return re.findall(r"\w+", title.casefold())
 
 
 class Trakt:
@@ -115,8 +120,10 @@ class Trakt:
         """Trakt ids for a title whose exact name didn't match, allowing the year to be off by one."""
         items, _ = self._request("GET", "/search/movie", params={"query": title, "fields": "title", "limit": 10})
         for item in items or []:
-            if year is None or abs((item["movie"].get("year") or 0) - year) <= 1:
-                return item["movie"]["ids"]
+            m = item["movie"]
+            # same words, ignoring punctuation ("Part II" vs ": Part II", en dash vs hyphen)
+            if _words(m["title"]) == _words(title) and (year is None or abs((m.get("year") or 0) - year) <= 1):
+                return m["ids"]
         return None
 
     def movie_ratings(self):
