@@ -100,6 +100,17 @@ class LetterboxdToTrakt(unittest.TestCase):
         self.assertEqual(s["added"], 1)
         self.assertEqual(t.added_history, [{"title": "Alien", "year": 1979, "watched_at": "released"}])
 
+    def test_dated_entry_matches_despite_year_mismatch(self):
+        # Letterboxd says 2019, Trakt says 2020; same title on the same day is the same viewing
+        t = FakeTrakt(history=[play(1, 581734, "Sound of Metal", 2020, "2026-05-11T12:00:00.000Z")])
+        s = sync.letterboxd_to_trakt(t, [Watch("Sound of Metal", 2019, "2026-05-11")], {}, sync_ratings=False)
+        self.assertEqual((s["added"], s["already_on_trakt"]), (0, 1))
+
+    def test_undated_remake_not_confused(self):
+        t = FakeTrakt(history=[play(1, 948, "Halloween", 1978, "2023-04-05T12:00:00.000Z")])
+        s = sync.letterboxd_to_trakt(t, [Watch("Halloween", 2018, None)], {}, sync_ratings=False)
+        self.assertEqual(s["added"], 1)
+
     def test_unchanged_rating_not_resent(self):
         t = FakeTrakt(ratings=[{"rating": 9, "movie": {"title": "Heat", "year": 1995, "ids": {"tmdb": 949}}}])
         sync.letterboxd_to_trakt(t, [Watch("Heat", 1995, "2026-10-20", tmdb=949, rating=4.5),
