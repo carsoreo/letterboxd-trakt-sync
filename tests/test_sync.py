@@ -20,7 +20,7 @@ RSS = """<?xml version="1.0" encoding="utf-8"?>
 DIARY = "﻿Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date\n" \
         "2026-01-02,Heat,1995,https://boxd.it/x,4.5,,,2026-01-01\n"
 WATCHED = "Date,Name,Year,Letterboxd URI\n2026-01-02,Heat,1995,https://boxd.it/x\n2025-05-05,Alien,1979,https://boxd.it/y\n"
-RATINGS = "Date,Name,Year,Letterboxd URI,Rating\n2025-05-05,Alien,1979,https://boxd.it/y,5\n"
+RATINGS = "Date,Name,Year,Letterboxd URI,Rating\n2025-05-05,Alien,1979,https://boxd.it/y,5\n2026-02-01,Heat,1995,https://boxd.it/x,4\n"
 
 
 def play(pid, tmdb, title, year, when):
@@ -162,6 +162,18 @@ class TraktToLetterboxd(unittest.TestCase):
         t.history = [play(7, 10404, "Raise the Red Lantern", 1991, now)]
         with tempfile.TemporaryDirectory() as d:
             self.assertEqual(sync.trakt_to_letterboxd(t, state, d)["exported"], 0)
+
+    def test_release_dated_imports_not_exported_but_later_rewatch_is(self):
+        t = FakeTrakt()
+        state = {"export_since": "2000-01-01T00:00:00.000Z"}
+        sync.letterboxd_to_trakt(t, [Watch("Whiplash", 2014, None)], state, sync_ratings=False)
+        t.history = [play(9, 244786, "Whiplash", 2014, "2030-01-01T12:00:00.000Z"),   # rewatch years later
+                     play(8, 244786, "Whiplash", 2014, "2014-10-10T00:00:00.000Z")]   # imported, release date
+        with tempfile.TemporaryDirectory() as d:
+            s = sync.trakt_to_letterboxd(t, state, d)
+            self.assertEqual(s["exported"], 1)
+            with open(s["files"][0], encoding="utf-8") as f:
+                self.assertIn("2030-01-01", f.read())
 
     def test_first_run_only_sets_watermark(self):
         state = {}

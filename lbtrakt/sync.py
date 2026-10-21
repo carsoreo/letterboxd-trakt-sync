@@ -2,12 +2,13 @@
 
 state (a dict saved as JSON) remembers:
   lb_seen         identity keys of every Letterboxd viewing, so they are never exported back
+  lb_undated      undated Letterboxd films -> time they were imported; Trakt plays of them up to then
+                  (release-date or "now" placeholders) are Letterboxd's, not new watches
   synced_guids    RSS entries already pushed to Trakt
   export_since    Trakt plays after this time are exported to Letterboxd
   exported_ids    Trakt history ids already written to an import file
 """
 import os
-from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 
 from .letterboxd import import_csv_chunks, norm
@@ -91,12 +92,14 @@ def letterboxd_to_trakt(trakt, watches, state, sync_ratings=True, dry_run=False)
         if ratings:
             summary["ratings"] = _post_with_search(trakt, trakt.add_ratings, ratings)[0]
         seen = set(state.get("lb_seen", []))
-        today = date.today().isoformat()
+        undated = state.setdefault("lb_undated", {})
+        # a day of slack: Trakt logs "released" as now when it has no release date
+        cutoff = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
         for w in watches:
             seen |= w.keys()
-            if w in new and not w.date:
-                # Trakt dates a "released" play today when it has no release date; don't export that back
-                seen |= replace(w, date=today).keys()
+            if not w.date:
+                for k in w.keys():
+                    undated.setdefault(k, cutoff)
             if w.source_id:
                 synced.add(w.source_id)
         state["lb_seen"], state["synced_guids"] = sorted(seen), sorted(synced)
@@ -115,12 +118,16 @@ def trakt_to_letterboxd(trakt, state, out_dir, since=None, now=None, dry_run=Fal
         return {"exported": 0, "files": [], "note": "first run, exporting plays from now on"}
 
     seen = set(state.get("lb_seen", []))
+    undated = state.get("lb_undated", {})
     done = set(state.get("exported_ids", []))
     ratings = {r["movie"]["ids"].get("tmdb"): r["rating"] for r in trakt.movie_ratings()}
     rows, ids = [], []
     for play in reversed(trakt.movie_history(start_at=since)):  # oldest first
-        # dated keys only: a Trakt rewatch of a film Letterboxd has without a date still exports
         if play["id"] in done or play_keys(play, any_date=False) & seen:
+            continue
+        # a film Letterboxd has without a date: plays up to its import are Letterboxd's; later rewatches export
+        cutoffs = [undated[k] for k in play_keys(play) if k in undated]
+        if cutoffs and play["watched_at"] <= max(cutoffs):
             continue
         m = play["movie"]
         rows.append({
