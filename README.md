@@ -28,6 +28,8 @@ Movies only (Letterboxd doesn't track TV). Pure Python 3.9+ standard library, so
 
 Add `--dry-run` before the command to see what would change without changing anything.
 
+Titles Trakt can't match by name (punctuation or a year off by one between the two sites) are looked up with Trakt's search. Things Letterboxd lists as films but Trakt only has as TV shows (e.g. *Cowboy Bebop*) are reported as not found and skipped.
+
 Diary entries keep their dates. Films marked watched on Letterboxd without a diary date are added to Trakt on their release date. Letterboxd half-star ratings become Trakt ratings out of 10 (★★★½ → 7).
 
 ## Running it on a schedule
