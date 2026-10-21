@@ -1,6 +1,7 @@
 """Reading Letterboxd data (RSS feed, export ZIP/CSV) and writing Letterboxd import CSVs."""
 import csv
 import io
+import re
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
@@ -11,6 +12,11 @@ NS = {"letterboxd": "https://letterboxd.com", "tmdb": "https://themoviedb.org"}
 USER_AGENT = "letterboxd-trakt-sync/0.1 (+https://github.com/carsoreo/letterboxd-trakt-sync)"
 IMPORT_FIELDS = ["tmdbID", "imdbID", "Title", "Year", "WatchedDate", "Rating10"]
 MAX_IMPORT_BYTES = 1_000_000  # Letterboxd rejects import files over 1 MB
+
+
+def norm(title):
+    """Title for matching: lower case, punctuation ignored ("Part II" == ": Part II", en dash == hyphen)."""
+    return " ".join(re.findall(r"\w+", title.casefold()))
 
 
 @dataclass
@@ -27,12 +33,12 @@ class Watch:
     def keys(self):
         """Identity keys for spotting the same viewing on both services."""
         day = self.date or "?"
-        out = {f"t:{self.title.casefold()}|{self.year}|{day}"}
+        out = {f"t:{norm(self.title)}|{self.year}|{day}"}
         # Letterboxd and Trakt sometimes disagree on the year by one (festival vs release year)
         if self.date:
-            out.add(f"d:{self.title.casefold()}|{day}")
+            out.add(f"d:{norm(self.title)}|{day}")
         elif self.year:
-            out |= {f"t:{self.title.casefold()}|{self.year + d}|?" for d in (-1, 1)}
+            out |= {f"t:{norm(self.title)}|{self.year + d}|?" for d in (-1, 1)}
         if self.tmdb:
             out.add(f"tmdb:{self.tmdb}|{day}")
         return out

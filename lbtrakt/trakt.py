@@ -1,10 +1,11 @@
 """Small Trakt API client: device sign-in, token refresh, movie history and ratings."""
 import json
-import re
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+from .letterboxd import norm
 
 API = "https://api.trakt.tv"
 USER_AGENT = "letterboxd-trakt-sync/0.1"
@@ -14,9 +15,6 @@ POST_BATCH = 500
 class TraktError(Exception):
     pass
 
-
-def _words(title):
-    return re.findall(r"\w+", title.casefold())
 
 
 class Trakt:
@@ -121,8 +119,7 @@ class Trakt:
         items, _ = self._request("GET", "/search/movie", params={"query": title, "fields": "title", "limit": 10})
         for item in items or []:
             m = item["movie"]
-            # same words, ignoring punctuation ("Part II" vs ": Part II", en dash vs hyphen)
-            if _words(m["title"]) == _words(title) and (year is None or abs((m.get("year") or 0) - year) <= 1):
+            if norm(m["title"]) == norm(title) and (year is None or abs((m.get("year") or 0) - year) <= 1):
                 return m["ids"]
         return None
 

@@ -123,6 +123,11 @@ class LetterboxdToTrakt(unittest.TestCase):
         self.assertEqual(t.added_history, [{"watched_at": "released", "ids": {"tmdb": 240}}])
         self.assertEqual(t.added_ratings, [{"rating": 10, "ids": {"tmdb": 240}}])
 
+    def test_titles_match_ignoring_punctuation(self):
+        t = FakeTrakt(history=[play(1, 240, "The Godfather: Part II", 1974, "1974-12-20T00:00:00.000Z")])
+        s = sync.letterboxd_to_trakt(t, [Watch("The Godfather Part II", 1974, None)], {}, sync_ratings=False)
+        self.assertEqual(s["added"], 0)
+
     def test_undated_entry_matches_year_off_by_one(self):
         t = FakeTrakt(history=[play(1, 1339713, "Obsession", 2026, "2026-05-16T02:00:00.000Z")])
         s = sync.letterboxd_to_trakt(t, [Watch("Obsession", 2025, None)], {}, sync_ratings=False)

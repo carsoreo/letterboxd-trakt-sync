@@ -9,7 +9,7 @@ state (a dict saved as JSON) remembers:
 import os
 from datetime import date, datetime, timedelta, timezone
 
-from .letterboxd import import_csv_chunks
+from .letterboxd import import_csv_chunks, norm
 
 
 def local_date(iso):
@@ -20,9 +20,9 @@ def play_keys(play, any_date=True):
     """Identity keys for a Trakt history item. '?' keys let undated Letterboxd films match any play."""
     m = play["movie"]
     day = local_date(play["watched_at"])
-    keys = {f"d:{m['title'].casefold()}|{day}"}
+    keys = {f"d:{norm(m['title'])}|{day}"}
     for d in (day, "?") if any_date else (day,):
-        keys.add(f"t:{m['title'].casefold()}|{m.get('year')}|{d}")
+        keys.add(f"t:{norm(m['title'])}|{m.get('year')}|{d}")
         if m["ids"].get("tmdb"):
             keys.add(f"tmdb:{m['ids']['tmdb']}|{d}")
     return keys
@@ -74,11 +74,11 @@ def letterboxd_to_trakt(trakt, watches, state, sync_ratings=True, dry_run=False)
         current = {}
         for r in trakt.movie_ratings():
             m = r["movie"]
-            current[m["ids"].get("tmdb")] = current[(m["title"].casefold(), m.get("year"))] = r["rating"]
+            current[m["ids"].get("tmdb")] = current[(norm(m["title"]), m.get("year"))] = r["rating"]
         latest = {}
         for w in watches:  # later entries win, so the newest Letterboxd rating is kept
             if w.rating:
-                latest[w.tmdb or (w.title.casefold(), w.year)] = w
+                latest[w.tmdb or (norm(w.title), w.year)] = w
         for key, w in latest.items():
             r10 = max(1, min(10, round(w.rating * 2)))
             if current.get(key) != r10:
