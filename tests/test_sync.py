@@ -65,6 +65,7 @@ class LetterboxdParsing(unittest.TestCase):
         w = {(x.title, x.date): x for x in letterboxd.parse_export(DIARY, WATCHED, RATINGS)}
         self.assertEqual(set(w), {("Heat", "2026-01-01"), ("Alien", None)})  # Heat not duplicated
         self.assertEqual(w[("Alien", None)].rating, 5.0)
+        self.assertEqual(w[("Heat", "2026-01-01")].rating, 4.0)  # current rating beats the diary one
 
     def test_zip_ignores_deleted_and_orphaned_copies(self):
         with tempfile.TemporaryDirectory() as d:

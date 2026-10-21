@@ -105,7 +105,8 @@ def parse_export(diary_csv=None, watched_csv=None, ratings_csv=None):
         dated.add(key)
         watches.append(Watch(
             title=r["Name"], year=key[1], date=r.get("Watched Date") or r.get("Date"),
-            rating=_float(r.get("Rating")) or ratings.get(key),
+            # ratings.csv holds the current rating; a diary row keeps the one given when it was logged
+            rating=ratings.get(key) or _float(r.get("Rating")),
             rewatch=r.get("Rewatch", "").lower() == "yes",
         ))
     for r in _rows(watched_csv or ""):
